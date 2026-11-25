@@ -10,16 +10,17 @@ import { orderTotals } from "@/lib/pricing";
 import { useRegion } from "@/lib/region";
 
 export default function CheckoutPage() {
-  const { lines, subtotal, clear } = useCart();
-  const { region } = useRegion();
+  const { lines, subtotal, weightKg, clear } = useCart();
+  const { region, zone } = useRegion();
   const [ship, setShip] = useState<"standard" | "express">("standard");
   const [orderId, setOrderId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { getProduct } = useCatalog();
 
-  const std = orderTotals(subtotal, region, false);
-  const t = orderTotals(subtotal, region, ship === "express");
+  const std = orderTotals(subtotal, weightKg, region, zone, false);
+  const exp = orderTotals(subtotal, weightKg, region, zone, true);
+  const t = ship === "express" ? exp : std;
   const { tax, shipping, total } = t;
 
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -42,6 +43,7 @@ export default function CheckoutPage() {
           email,
           address,
           regionCode: region.code,
+          zoneCode: zone.code,
           shippingMethod: ship,
           items: lines.map((l) => ({ slug: l.slug, qty: l.qty })),
         });
@@ -99,11 +101,14 @@ export default function CheckoutPage() {
           <h2>Guest checkout</h2>
           <label>Full name<input name="name" required autoComplete="name" /></label>
           <label>Email<input name="email" type="email" required autoComplete="email" /></label>
-          <label>Delivery address<textarea name="address" required rows={3} autoComplete="street-address" /></label>
+          <p className="small">
+            📍 Delivering to <strong>{zone.name}, {region.name}</strong>. To change the area, use the "Deliver to" bar at the top; prices update.
+          </p>
+          <label>Street address<textarea name="address" required rows={3} autoComplete="street-address" placeholder="House no., street, city, postal code" /></label>
           <fieldset>
             <legend>Delivery</legend>
-            <label className="inline"><input type="radio" checked={ship === "standard"} onChange={() => setShip("standard")} /> Standard ({region.standardDays}) {std.freeShipping ? "Free" : money(std.shipping)}</label>
-            <label className="inline"><input type="radio" checked={ship === "express"} onChange={() => setShip("express")} /> Express ({region.expressDays}) {money(orderTotals(subtotal, region, true).shipping)}</label>
+            <label className="inline"><input type="radio" checked={ship === "standard"} onChange={() => setShip("standard")} /> Standard ({zone.standardDays}) {std.freeShipping ? "Free" : money(std.shipping)}</label>
+            <label className="inline"><input type="radio" checked={ship === "express"} onChange={() => setShip("express")} /> Express ({zone.expressDays}) {money(exp.shipping)}</label>
           </fieldset>
           <p className="small muted">Payment is a placeholder in this demo. A real gateway comes with the backend.</p>
           {error && <p className="error" role="alert">{error}</p>}
@@ -117,7 +122,7 @@ export default function CheckoutPage() {
           })}
           <hr />
           <div className="row"><span>Subtotal</span><span>{money(subtotal)}</span></div>
-          <div className="row"><span>Delivery to {region.name}</span><span>{shipping === 0 ? "Free" : money(shipping)}</span></div>
+          <div className="row"><span>Delivery to {zone.name} ({weightKg.toFixed(2)} kg)</span><span>{shipping === 0 ? "Free" : money(shipping)}</span></div>
           <div className="row"><span>Tax ({Math.round(region.taxRate * 100)}%)</span><span>{money(tax)}</span></div>
           <div className="row total"><strong>Total</strong><strong>{money(total)}</strong></div>
         </aside>

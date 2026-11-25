@@ -29,7 +29,7 @@ export default function ProductDetail({ slug }: { slug: string }) {
         <div>
           <h1>{p.name}</h1>
           <div className="small">⭐ {p.rating} <span className="muted">({p.reviews} reviews)</span></div>
-          <TruePrice price={p.price} detail />
+          <TruePrice price={p.price} weightKg={p.weightKg} detail />
           <p>{p.description}</p>
           <p className="small muted">
             {p.stock > 0 ? (p.stock <= 10 ? `Only ${p.stock} left` : "In stock") : "Out of stock"}

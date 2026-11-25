@@ -41,6 +41,10 @@ export class CreateOrderDto {
   @Length(2, 2)
   regionCode: string;
 
+  @IsString()
+  @Length(1, 20)
+  zoneCode: string;
+
   @IsIn(["standard", "express"])
   shippingMethod: "standard" | "express";
 

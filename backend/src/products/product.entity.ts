@@ -28,6 +28,9 @@ export class Product {
   @Column("int")
   stock: number;
 
+  @Column("decimal", { precision: 6, scale: 2, default: 0.5, transformer: money })
+  weightKg: number;
+
   @Column()
   emoji: string;
 

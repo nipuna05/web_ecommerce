@@ -11,7 +11,6 @@ export default function Header() {
       <div className="container header-inner">
         <Link href="/" className="logo">🛍️ ShopEase</Link>
         <nav className="nav">
-          <RegionPicker />
           <Link href="/products/">Shop</Link>
           <Link href="/account/">Account</Link>
           <Link href="/cart/" className="cart-link">
@@ -19,6 +18,7 @@ export default function Header() {
           </Link>
         </nav>
       </div>
+      <RegionPicker />
     </header>
   );
 }

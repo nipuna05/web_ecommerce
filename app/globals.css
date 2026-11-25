@@ -94,3 +94,9 @@ fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px;
 @media (max-width: 600px) { .region .muted { display: none; } .nav { gap: 10px; } }
 .error { color: #dc2626; font-size: .9rem; margin: 0; }
 .btn:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Delivery location bar */
+.deliverbar { background: color-mix(in srgb, var(--brand) 8%, var(--card)); border-top: 1px solid var(--line); }
+.deliverbar-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 6px; padding-bottom: 6px; }
+.deliverbar select { padding: 4px 8px; max-width: 100%; }
+@media (max-width: 600px) { .deliverbar-note { display: none; } }

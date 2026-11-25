@@ -14,6 +14,7 @@ export async function createOrder(body: {
   email: string;
   address: string;
   regionCode: string;
+  zoneCode: string;
   shippingMethod: "standard" | "express";
   items: { slug: string; qty: number }[];
 }): Promise<ApiOrder> {

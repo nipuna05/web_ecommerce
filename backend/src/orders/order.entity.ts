@@ -22,6 +22,12 @@ export class Order {
   @Column()
   regionCode: string;
 
+  @Column({ nullable: true })
+  zoneCode: string;
+
+  @Column("decimal", { precision: 8, scale: 2, nullable: true, transformer: money })
+  weightKg: number;
+
   @Column()
   shippingMethod: string;
 

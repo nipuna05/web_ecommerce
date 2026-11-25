@@ -9,6 +9,7 @@ type CartCtx = {
   lines: Line[];
   count: number;
   subtotal: number;
+  weightKg: number;
   add: (slug: string, qty?: number) => void;
   setQty: (slug: string, qty: number) => void;
   remove: (slug: string) => void;
@@ -54,7 +55,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const clear = () => setLines([]);
     const count = lines.reduce((n, l) => n + l.qty, 0);
     const subtotal = lines.reduce((n, l) => n + (getProduct(l.slug)?.price ?? 0) * l.qty, 0);
-    return { lines, count, subtotal, add, setQty, remove, clear };
+    const weightKg = lines.reduce((n, l) => n + (getProduct(l.slug)?.weightKg ?? 0) * l.qty, 0);
+    return { lines, count, subtotal, weightKg, add, setQty, remove, clear };
   }, [lines, getProduct]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

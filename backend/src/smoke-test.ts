@@ -14,7 +14,7 @@ async function main() {
   const order = (items: unknown, extra: object = {}) =>
     j("/orders", {
       method: "POST",
-      body: JSON.stringify({ name: "Test User", email: "Test@Example.com", address: "1 Test Street", regionCode: "US", shippingMethod: "standard", items, ...extra }),
+      body: JSON.stringify({ name: "Test User", email: "Test@Example.com", address: "1 Test Street", regionCode: "US", zoneCode: "metro", shippingMethod: "standard", items, ...extra }),
     });
 
   // Products
@@ -38,6 +38,25 @@ async function main() {
   // Free delivery above threshold, express surcharge
   const big = await order([{ slug: "smart-watch", qty: 1 }], { shippingMethod: "express" });
   assert.equal(big.body.shipping, 8, "free standard + 8 express");
+
+  // Delivery depends on the address zone and total weight.
+  // 2 mug sets = 3.2 kg -> billed 4 kg. US "regional": 6.49 + 1.30 x 3 = 10.39, tax 8% of 49.98 = 4.00
+  const heavy = await order([{ slug: "ceramic-mug-set", qty: 2 }], { zoneCode: "regional" });
+  assert.equal(heavy.status, 201, JSON.stringify(heavy.body));
+  assert.equal(heavy.body.shipping, 10.39);
+  assert.equal(heavy.body.total, 64.37);
+  assert.equal(heavy.body.zoneCode, "regional");
+  assert.equal(heavy.body.weightKg, 3.2);
+  // Same cart to a different area costs a different amount (US metro: 4.99 + 1.00 x 3 = 7.99)
+  const metro = await order([{ slug: "ceramic-mug-set", qty: 2 }], { zoneCode: "metro" });
+  assert.equal(metro.body.shipping, 7.99);
+  // Sri Lanka remote, 2 yoga mats (2.4 kg -> 3 kg): 8.99 + 1.40 x 2 = 11.79; tax 18% of 42 = 7.56
+  const lk = await order([{ slug: "yoga-mat", qty: 2 }], { regionCode: "LK", zoneCode: "remote" });
+  assert.equal(lk.body.shipping, 11.79);
+  assert.equal(lk.body.total, 61.35);
+  // A zone that does not belong to the country / unknown zone is rejected
+  assert.equal((await order([{ slug: "yoga-mat", qty: 1 }], { zoneCode: "mars" })).status, 400);
+  assert.equal((await order([{ slug: "yoga-mat", qty: 1 }], { zoneCode: undefined })).status, 400);
 
   // Stock was decremented (40 -> 39) and cannot be oversold (smart-watch had 9, 1 sold)
   assert.equal((await j("/products/mechanical-keyboard")).body.stock, 39);

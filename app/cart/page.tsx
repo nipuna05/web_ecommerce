@@ -8,10 +8,10 @@ import { orderTotals } from "@/lib/pricing";
 import { useRegion } from "@/lib/region";
 
 export default function CartPage() {
-  const { lines, subtotal, setQty, remove } = useCart();
-  const { region } = useRegion();
+  const { lines, subtotal, weightKg, setQty, remove } = useCart();
+  const { region, zone } = useRegion();
   const { getProduct } = useCatalog();
-  const t = orderTotals(subtotal, region);
+  const t = orderTotals(subtotal, weightKg, region, zone);
 
   if (lines.length === 0) {
     return (
@@ -54,10 +54,11 @@ export default function CartPage() {
       <div className="summary">
         <div className="row"><span>Items</span><span>{money(t.subtotal)}</span></div>
         <div className="row"><span>Tax ({Math.round(region.taxRate * 100)}%)</span><span>{money(t.tax)}</span></div>
-        <div className="row"><span>Delivery to {region.name}</span><span>{t.freeShipping ? "Free" : money(t.shipping)}</span></div>
+        <div className="row"><span>Delivery to {zone.name}, {region.name}</span><span>{t.freeShipping ? "Free" : money(t.shipping)}</span></div>
         <div className="row total"><strong>Total</strong><strong>{money(t.total)}</strong></div>
+        <p className="small muted">Order weight {weightKg.toFixed(2)} kg (billed as {t.billableKg} kg). Arrives in {zone.standardDays}.</p>
         {!t.freeShipping && (
-          <p className="small muted">Add {money(region.freeShippingOver - t.subtotal)} more for free delivery.</p>
+          <p className="small muted">Add {money(zone.freeOver - t.subtotal)} more for free standard delivery.</p>
         )}
         <p className="small ok">True-price promise: this total is what you pay at checkout.</p>
         <Link href="/checkout/" className="btn">Checkout</Link>

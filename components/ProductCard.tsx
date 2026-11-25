@@ -17,7 +17,7 @@ export default function ProductCard({ p }: { p: Product }) {
         <Link href={`/products/${p.slug}/`} className="card-title">{p.name}</Link>
         <div className="small">⭐ {p.rating} <span className="muted">({p.reviews})</span></div>
         <div className="card-row">
-          <TruePrice price={p.price} />
+          <TruePrice price={p.price} weightKg={p.weightKg} />
           {p.stock > 0 ? (
             <button className="btn btn-sm" onClick={() => add(p.slug)}>Add</button>
           ) : (
