@@ -45,6 +45,17 @@ export class Product {
   @Column({ default: true })
   active: boolean;
 
+  /**
+   * Review state. Store products and anything created before this existed are "approved".
+   * New vendor products start "pending" and are not public until an admin approves them.
+   */
+  @Column({ default: "approved" })
+  approvalStatus: "pending" | "approved" | "rejected";
+
+  /** Moderation hide. Only admins can change it; a vendor cannot undo it. */
+  @Column({ default: false })
+  hiddenByAdmin: boolean;
+
   /** Shown as "last updated" so buyers can spot abandoned listings. */
   @UpdateDateColumn()
   updatedAt: Date;

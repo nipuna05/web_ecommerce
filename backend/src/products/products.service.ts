@@ -27,7 +27,7 @@ export class ProductsService implements OnModuleInit {
     const vs = ids.length ? await this.vendors.find({ where: { id: In(ids) } }) : [];
     const byId = new Map(vs.map((v) => [v.id, v]));
     return list
-      .filter((p) => p.active && (!p.vendorId || byId.get(p.vendorId)?.status === "approved"))
+      .filter((p) => p.active && !p.hiddenByAdmin && p.approvalStatus === "approved" && (!p.vendorId || byId.get(p.vendorId)?.status === "approved"))
       .map(({ vendorId, ...p }) => {
         const v = vendorId ? byId.get(vendorId) : undefined;
         return { ...p, vendor: v ? { name: v.shopName, slug: v.slug } : null };

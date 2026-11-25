@@ -72,7 +72,8 @@ export class VendorPortalController {
       throw new ConflictException("A product with this slug already exists");
     }
     return this.products.save(
-      this.products.create({ ...dto, rating: 0, reviews: 0, vendorId: req.vendor!.id, active: true }),
+      // New vendor products wait for an admin to approve them.
+      this.products.create({ ...dto, rating: 0, reviews: 0, vendorId: req.vendor!.id, active: true, approvalStatus: "pending" }),
     );
   }
 
@@ -80,8 +81,13 @@ export class VendorPortalController {
   async update(@Param("slug") slug: string, @Body() dto: UpdateProductDto, @Req() req: VendorRequest) {
     const p = await this.products.findOne({ where: { slug, vendorId: req.vendor!.id } });
     if (!p) throw new NotFoundException("Product not found");
-    if (Object.keys(dto).length === 0) throw new BadRequestException("Nothing to update");
-    Object.assign(p, dto);
+    // Validated DTO objects list every field (unsent ones are undefined), so look at defined values only.
+    const changes = Object.fromEntries(Object.entries(dto).filter(([, v]) => v !== undefined));
+    if (Object.keys(changes).length === 0) throw new BadRequestException("Nothing to update");
+    Object.assign(p, changes);
+    // Changing what buyers read (not just price, stock, weight or visibility) sends it back for review,
+    // so an approved listing can't be swapped for something else afterwards.
+    if (["name", "category", "description", "emoji"].some((k) => k in changes)) p.approvalStatus = "pending";
     return this.products.save(p);
   }
 

@@ -32,7 +32,7 @@ export class OrdersService {
         if (!p) throw new BadRequestException(`Unknown product: ${slug}`);
         // Hidden products, or products of vendors that are no longer approved, cannot be bought.
         const vendorOk = !p.vendorId || (await m.findOne(Vendor, { where: { id: p.vendorId } }))?.status === "approved";
-        if (!p.active || !vendorOk) throw new BadRequestException(`${p.name} is no longer available`);
+        if (!p.active || p.hiddenByAdmin || p.approvalStatus !== "approved" || !vendorOk) throw new BadRequestException(`${p.name} is no longer available`);
         // Atomic stock decrement: only succeeds if enough stock remains.
         const res = await m
           .createQueryBuilder()

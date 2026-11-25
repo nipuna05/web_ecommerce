@@ -176,10 +176,23 @@ function Row({ p, onSave, onToggle, onDelete }: { p: Product; onSave: (price: nu
   const valid = Number(price) >= 0.01 && Number.isInteger(Number(stock)) && Number(stock) >= 0;
   return (
     <tr>
-      <td>{p.emoji} {p.name}<div className="small muted">{p.slug} · {p.category}</div></td>
+      <td>
+        {p.emoji} {p.name}
+        {p.approvalStatus === "pending" && <span className="pill pill-paid"> waiting for approval</span>}
+        {p.approvalStatus === "rejected" && <span className="pill pill-cancelled"> rejected</span>}
+        <div className="small muted">{p.slug} · {p.category}</div>
+        {p.approvalStatus === "pending" && <div className="small muted">Not visible to shoppers until an admin approves it.</div>}
+        {p.approvalStatus === "rejected" && <div className="small error">Rejected by the store. Delete it and list a corrected version.</div>}
+      </td>
       <td><input type="number" step="0.01" min="0.01" value={price} onChange={(e) => setPrice(e.target.value)} aria-label={`Price for ${p.name}`} className="narrow" /></td>
       <td><input type="number" step="1" min="0" value={stock} onChange={(e) => setStock(e.target.value)} aria-label={`Stock for ${p.name}`} className="narrow" /></td>
-      <td><button className="link-btn" onClick={onToggle}>{p.active === false ? "Hidden · show" : "Visible · hide"}</button></td>
+      <td>
+        {p.hiddenByAdmin ? (
+          <span className="small error">Hidden by admin. Contact the store.</span>
+        ) : (
+          <button className="link-btn" onClick={onToggle}>{p.active === false ? "Hidden · show" : "Visible · hide"}</button>
+        )}
+      </td>
       <td>
         <button className="btn btn-sm" disabled={!dirty || !valid} onClick={() => onSave(Number(price), Number(stock))}>Save</button>{" "}
         <button className="link-btn" onClick={onDelete}>Delete</button>

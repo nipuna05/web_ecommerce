@@ -7,6 +7,8 @@ export default function SoldBy({ p }: { p: Pick<Product, "vendor"> }) {
   return (
     <div className="small muted">
       Sold by <Link href={`/store/?v=${encodeURIComponent(p.vendor.slug)}`}>{p.vendor.name}</Link>
+      {" · "}
+      <Link href={`/products/?shop=${encodeURIComponent(p.vendor.slug)}`}>more from this shop</Link>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { OrdersService } from "../orders/orders.service";
 import { Product } from "../products/product.entity";
 import { VendorStatusDto } from "../vendors/vendors.dto";
 import { VendorsService } from "../vendors/vendors.service";
-import { CreateProductDto, UpdateProductDto, UpdateStatusDto } from "./admin.dto";
+import { AdminUpdateProductDto, CreateProductDto, UpdateStatusDto } from "./admin.dto";
 
 /** Everything under /api/admin requires a signed-in admin. */
 @Controller("admin")
@@ -32,6 +32,7 @@ export class AdminController {
     return {
       orders: orders.length,
       pending: orders.filter((o) => o.status === "pending").length,
+      pendingProducts: await this.products.count({ where: { approvalStatus: "pending" } }),
       revenue: Math.round(live.reduce((s, o) => s + o.total, 0) * 100) / 100,
       lowStock: lowStock.map((p) => ({ slug: p.slug, name: p.name, stock: p.stock })),
     };
@@ -72,11 +73,15 @@ export class AdminController {
   }
 
   @Patch("products/:slug")
-  async updateProduct(@Param("slug") slug: string, @Body() dto: UpdateProductDto) {
+  async updateProduct(@Param("slug") slug: string, @Body() dto: AdminUpdateProductDto) {
     const p = await this.products.findOne({ where: { slug } });
     if (!p) throw new NotFoundException("Product not found");
-    if (Object.keys(dto).length === 0) throw new BadRequestException("Nothing to update");
-    Object.assign(p, dto);
+    const changes = Object.fromEntries(Object.entries(dto).filter(([, v]) => v !== undefined)) as AdminUpdateProductDto;
+    if (Object.keys(changes).length === 0) throw new BadRequestException("Nothing to update");
+    const { hidden, approval, ...fields } = changes;
+    Object.assign(p, fields);
+    if (hidden !== undefined) p.hiddenByAdmin = hidden;
+    if (approval !== undefined) p.approvalStatus = approval;
     return this.products.save(p);
   }
 

@@ -10,7 +10,9 @@ export type Product = {
   // Only present when products come from the API:
   vendor?: { name: string; slug: string } | null; // null/undefined = sold by the store
   updatedAt?: string;
-  active?: boolean;
+  active?: boolean; // false = the vendor hid it
+  hiddenByAdmin?: boolean; // true = an admin hid it (only admins can undo)
+  approvalStatus?: "pending" | "approved" | "rejected"; // vendor products start pending
   emoji: string;
   description: string;
 };

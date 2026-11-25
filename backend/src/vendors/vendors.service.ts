@@ -42,7 +42,7 @@ export class VendorsService {
   async publicShop(slug: string) {
     const v = await this.vendors.findOne({ where: { slug, status: "approved" } });
     if (!v) throw new NotFoundException("Shop not found");
-    const products = await this.products.find({ where: { vendorId: v.id, active: true }, order: { name: "ASC" } });
+    const products = await this.products.find({ where: { vendorId: v.id, active: true, hiddenByAdmin: false, approvalStatus: "approved" }, order: { name: "ASC" } });
     return {
       shop: { name: v.shopName, slug: v.slug, description: v.description },
       products: products.map(({ vendorId, ...p }) => ({ ...p, vendor: { name: v.shopName, slug: v.slug } })),

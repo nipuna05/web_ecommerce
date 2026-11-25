@@ -51,6 +51,12 @@ export class UpdateProductDto {
   @IsOptional() @IsBoolean() active?: boolean;
 }
 
+/** Admin-only extras: `hidden` is the moderation switch that vendors cannot change. */
+export class AdminUpdateProductDto extends UpdateProductDto {
+  @IsOptional() @IsBoolean() hidden?: boolean;
+  @IsOptional() @IsIn(["pending", "approved", "rejected"]) approval?: "pending" | "approved" | "rejected";
+}
+
 export class UpdateStatusDto {
   @IsIn(ORDER_STATUSES as unknown as string[])
   status: string;

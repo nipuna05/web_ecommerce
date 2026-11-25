@@ -11,7 +11,7 @@ A mobile-first, multi-category online store: a Next.js storefront plus a NestJS 
 - **True-price promise:** every price is shown delivered (item + tax + delivery) for the chosen country, and the cart and checkout match it exactly
 - Delivery priced by country, area (metro, regional, remote) and total weight
 - Accounts, order history, and an admin panel (products, orders, stock, vendor approvals) when the API is connected
-- Vendors: apply at `/sell/`, get approved by an admin, then list and manage products at `/vendor/`; public shop pages at `/store/?v=<shop>`; "Sold by" labels, listing-updated dates, and a flat published seller fee with a fee calculator
+- Vendors: apply at `/sell/`, get approved by an admin, then list and manage products at `/vendor/`. Every new vendor product waits for admin approval (editing its name, description or category sends it back for review), and admins can hide any product, which vendors cannot undo; public shop pages at `/store/?v=<shop>`; "Sold by" labels, listing-updated dates, and a flat published seller fee with a fee calculator
 - Responsive layout, light and dark theme
 
 On GitHub Pages the site uses built-in demo data (`lib/products.ts`) and keeps orders in the browser only. With the API running, products and orders come from PostgreSQL. No real payments yet. Tax and delivery rates are demo values.

@@ -207,6 +207,30 @@ async function main() {
   assert.equal((await call("/vendor/products/vend-widget", t3, "PATCH", { price: 1 })).status, 404, "other vendor cannot edit");
   assert.equal((await call("/vendor/products/vend-widget", t3, "DELETE")).status, 404, "other vendor cannot delete");
 
+  // New vendor products wait for admin approval: not public, not buyable, and vendors cannot approve themselves
+  assert.equal(vc.body.approvalStatus, "pending");
+  assert.equal((await j("/products/vend-widget")).status, 404, "pending product is not public");
+  assert.equal((await j("/products")).body.some((p: { slug: string }) => p.slug === "vend-widget"), false);
+  assert.equal((await j("/vendors/shop/dev-tools-shop")).body.products.length, 0, "pending product not in the shop page");
+  assert.equal((await order([{ slug: "vend-widget", qty: 1 }])).status, 400, "pending product cannot be bought");
+  assert.equal((await call("/vendor/products/vend-widget", t2, "PATCH", { approvalStatus: "approved" })).status, 400, "vendor cannot self-approve");
+  assert.equal((await call("/vendor/products/vend-widget", t2, "PATCH", { approval: "approved" })).status, 400, "vendor cannot use the admin approval field");
+  assert.equal((await call("/admin/products/vend-widget", t2, "PATCH", { approval: "approved" })).status, 403);
+  assert.equal((await call("/admin/stats", ta)).body.pendingProducts, 1, "dashboard counts pending products");
+  assert.equal((await call("/admin/products/vend-widget", ta, "PATCH", { approval: "rejected" })).status, 200);
+  assert.equal((await j("/products/vend-widget")).status, 404, "rejected product is not public");
+  assert.equal((await call("/admin/products/vend-widget", ta, "PATCH", { approval: "approved" })).status, 200);
+  assert.equal((await j("/products/vend-widget")).status, 200, "approved product is public");
+  assert.equal((await call("/vendor/products/vend-widget", t2, "PATCH", {})).status, 400, "empty update is rejected");
+  assert.equal((await call("/admin/products/vend-widget", ta, "PATCH", {})).status, 400, "empty admin update is rejected");
+  // Price/stock edits keep it live; changing what buyers read sends it back for review
+  assert.equal((await call("/vendor/products/vend-widget", t2, "PATCH", { price: 22.5 })).body.approvalStatus, "approved");
+  assert.equal((await j("/products/vend-widget")).status, 200);
+  assert.equal((await call("/vendor/products/vend-widget", t2, "PATCH", { description: "Totally different text now." })).body.approvalStatus, "pending");
+  assert.equal((await j("/products/vend-widget")).status, 404, "edited listing is re-reviewed");
+  assert.equal((await call("/admin/products/vend-widget", ta, "PATCH", { approval: "approved" })).status, 200);
+  assert.equal((await call("/admin/stats", ta)).body.pendingProducts, 0);
+
   // Public view: shows "sold by", never the internal vendorId
   const pubv = await j("/products/vend-widget");
   assert.equal(pubv.status, 200);
@@ -232,13 +256,24 @@ async function main() {
   assert.ok(!Number.isNaN(Date.parse(pubv.body.updatedAt)), "listings carry an updatedAt date");
 
   // Hiding a product removes it from the shop and blocks new orders; admin still sees it
-  assert.equal((await call("/admin/products/vend-widget", ta, "PATCH", { active: false })).status, 200);
+  // 1) The vendor can hide and re-list their own product
+  assert.equal((await call("/vendor/products/vend-widget", t2, "PATCH", { active: false })).status, 200);
+  assert.equal((await j("/products/vend-widget")).status, 404, "vendor-hidden");
+  assert.equal((await call("/vendor/products/vend-widget", t2, "PATCH", { active: true })).status, 200);
+  assert.equal((await j("/products/vend-widget")).status, 200, "vendor re-listed");
+  // 2) An admin hide is separate: the vendor cannot undo it, and vendors cannot send the admin switch
+  assert.equal((await call("/vendor/products/vend-widget", t2, "PATCH", { hidden: false })).status, 400, "vendors cannot use the admin switch");
+  assert.equal((await call("/admin/products/vend-widget", ta, "PATCH", { hidden: true })).status, 200);
   assert.equal((await j("/products/vend-widget")).status, 404);
   assert.equal((await j("/products")).body.some((p: { slug: string }) => p.slug === "vend-widget"), false);
+  assert.equal((await j("/vendors/shop/dev-tools-shop")).body.products.length, 0, "not in the public shop either");
   assert.equal((await order([{ slug: "vend-widget", qty: 1 }])).status, 400, "hidden product cannot be bought");
+  assert.equal((await call("/vendor/products/vend-widget", t2, "PATCH", { active: true })).status, 200);
+  assert.equal((await j("/products/vend-widget")).status, 404, "vendor cannot override an admin hide");
+  assert.equal((await call("/vendor/products", t2)).body[0].hiddenByAdmin, true, "vendor can see it was hidden by admin");
   assert.equal((await call("/admin/products", ta)).body.some((p: { slug: string }) => p.slug === "vend-widget"), true);
-  await call("/vendor/products/vend-widget", t2, "PATCH", { active: true });
-  assert.equal((await j("/products/vend-widget")).status, 200, "vendor can re-list");
+  assert.equal((await call("/admin/products/vend-widget", ta, "PATCH", { hidden: false })).status, 200);
+  assert.equal((await j("/products/vend-widget")).status, 200, "admin un-hide restores it");
 
   // Suspending a vendor hides everything and locks the dashboard
   assert.equal((await call(`/admin/vendors/${vrec.id}/status`, ta, "PATCH", { status: "suspended" })).body.status, "suspended");

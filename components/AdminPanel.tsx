@@ -18,7 +18,7 @@ type AdminVendor = {
   ownerEmail?: string;
 };
 
-type Stats = { orders: number; pending: number; revenue: number; lowStock: { slug: string; name: string; stock: number }[] };
+type Stats = { orders: number; pending: number; pendingProducts: number; revenue: number; lowStock: { slug: string; name: string; stock: number }[] };
 
 export default function AdminPanel() {
   const { user, token, loading } = useAuth();
@@ -77,8 +77,14 @@ export default function AdminPanel() {
 
   const toggleProduct = (p: Product) =>
     run(
-      () => apiRequest(`/admin/products/${p.slug}`, { method: "PATCH", token, body: { active: p.active === false } }),
-      p.active === false ? `${p.name} is visible again` : `${p.name} is hidden from the shop`,
+      () => apiRequest(`/admin/products/${p.slug}`, { method: "PATCH", token, body: { hidden: !p.hiddenByAdmin } }),
+      p.hiddenByAdmin ? `${p.name} is visible again` : `${p.name} is hidden from the shop`,
+    );
+
+  const setApproval = (p: Product, approval: "approved" | "rejected") =>
+    run(
+      () => apiRequest(`/admin/products/${p.slug}`, { method: "PATCH", token, body: { approval } }),
+      approval === "approved" ? `${p.name} approved and now listed` : `${p.name} rejected`,
     );
 
   const setVendorStatus = (v: AdminVendor, status: string) =>
@@ -122,6 +128,7 @@ export default function AdminPanel() {
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "tab on" : "tab"} onClick={() => setTab(t)}>
             {t[0].toUpperCase() + t.slice(1)}
             {t === "vendors" && vendors.some((v) => v.status === "pending") ? ` (${vendors.filter((v) => v.status === "pending").length} new)` : ""}
+            {t === "products" && stats && stats.pendingProducts > 0 ? ` (${stats.pendingProducts} to review)` : ""}
           </button>
         ))}
       </div>
@@ -132,6 +139,7 @@ export default function AdminPanel() {
           <div className="stats">
             <div className="stat"><div className="small muted">Orders</div><strong>{stats.orders}</strong></div>
             <div className="stat"><div className="small muted">Pending</div><strong>{stats.pending}</strong></div>
+            <div className="stat"><div className="small muted">Products to review</div><strong>{stats.pendingProducts}</strong></div>
             <div className="stat"><div className="small muted">Revenue (excl. cancelled)</div><strong>{money(stats.revenue)}</strong></div>
           </div>
           <h2>Low stock (5 or fewer)</h2>
@@ -217,7 +225,7 @@ export default function AdminPanel() {
             <table className="table">
               <thead><tr><th>Product</th><th>Price (USD)</th><th>Stock</th><th></th></tr></thead>
               <tbody>
-                {products.map((p) => <ProductRow key={`${p.slug}:${p.price}:${p.stock}:${p.active}`} p={p} onSave={saveProduct} onDelete={removeProduct} onToggle={toggleProduct} />)}
+                {products.map((p) => <ProductRow key={`${p.slug}:${p.price}:${p.stock}:${p.active}:${p.hiddenByAdmin}:${p.approvalStatus}`} p={p} onSave={saveProduct} onDelete={removeProduct} onToggle={toggleProduct} onApproval={setApproval} />)}
               </tbody>
             </table>
           </div>
@@ -227,19 +235,21 @@ export default function AdminPanel() {
   );
 }
 
-function ProductRow({ p, onSave, onDelete, onToggle }: { p: Product; onSave: (p: Product, price: number, stock: number) => void; onDelete: (p: Product) => void; onToggle: (p: Product) => void }) {
+function ProductRow({ p, onSave, onDelete, onToggle, onApproval }: { p: Product; onSave: (p: Product, price: number, stock: number) => void; onDelete: (p: Product) => void; onToggle: (p: Product) => void; onApproval: (p: Product, a: "approved" | "rejected") => void }) {
   const [price, setPrice] = useState(String(p.price));
   const [stock, setStock] = useState(String(p.stock));
   const dirty = Number(price) !== p.price || Number(stock) !== p.stock;
   const valid = Number(price) >= 0.01 && Number.isInteger(Number(stock)) && Number(stock) >= 0;
   return (
     <tr>
-      <td>{p.emoji} {p.name}{p.active === false && <span className="pill"> hidden</span>}<div className="small muted">{p.slug} · {p.category}</div></td>
+      <td>{p.emoji} {p.name}{p.approvalStatus === "pending" && <span className="pill pill-paid"> needs review</span>}{p.approvalStatus === "rejected" && <span className="pill pill-cancelled"> rejected</span>}{p.hiddenByAdmin && <span className="pill pill-cancelled"> hidden by admin</span>}{p.active === false && <span className="pill"> hidden by vendor</span>}<div className="small muted">{p.slug} · {p.category}</div></td>
       <td><input type="number" step="0.01" min="0.01" value={price} onChange={(e) => setPrice(e.target.value)} aria-label={`Price for ${p.name}`} className="narrow" /></td>
       <td><input type="number" step="1" min="0" value={stock} onChange={(e) => setStock(e.target.value)} aria-label={`Stock for ${p.name}`} className="narrow" /></td>
       <td>
         <button className="btn btn-sm" disabled={!dirty || !valid} onClick={() => onSave(p, Number(price), Number(stock))}>Save</button>{" "}
-        <button className="link-btn" onClick={() => onToggle(p)}>{p.active === false ? "Show" : "Hide"}</button>{" "}
+        {p.approvalStatus !== "approved" && <button className="btn btn-sm" onClick={() => onApproval(p, "approved")}>Approve</button>}{" "}
+        {p.approvalStatus === "pending" && <button className="link-btn" onClick={() => onApproval(p, "rejected")}>Reject</button>}{" "}
+        <button className="link-btn" onClick={() => onToggle(p)}>{p.hiddenByAdmin ? "Show" : "Hide"}</button>{" "}
         <button className="link-btn" onClick={() => onDelete(p)}>Delete</button>
       </td>
     </tr>
