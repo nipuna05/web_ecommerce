@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import type { Product } from "@/lib/products";
+import { productHref, type Product } from "@/lib/products";
+import SoldBy from "./SoldBy";
 import TruePrice from "./TruePrice";
 import { useCart } from "@/lib/cart";
 
@@ -9,12 +10,13 @@ export default function ProductCard({ p }: { p: Product }) {
   const { add } = useCart();
   return (
     <div className="card">
-      <Link href={`/products/${p.slug}/`} className="card-img" aria-label={p.name}>
+      <Link href={productHref(p.slug)} className="card-img" aria-label={p.name}>
         <span>{p.emoji}</span>
       </Link>
       <div className="card-body">
         <div className="muted small">{p.category}</div>
-        <Link href={`/products/${p.slug}/`} className="card-title">{p.name}</Link>
+        <Link href={productHref(p.slug)} className="card-title">{p.name}</Link>
+        <SoldBy p={p} />
         <div className="small">⭐ {p.rating} <span className="muted">({p.reviews})</span></div>
         <div className="card-row">
           <TruePrice price={p.price} weightKg={p.weightKg} />

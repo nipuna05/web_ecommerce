@@ -15,6 +15,7 @@ export default function Header() {
         <Link href="/" className="logo">🛍️ ShopEase</Link>
         <nav className="nav">
           <Link href="/products/">Shop</Link>
+          {apiEnabled && <Link href="/sell/">Sell</Link>}
           {user?.role === "admin" && <Link href="/admin/">Admin</Link>}
           {apiEnabled && !user ? <Link href="/login/">Sign in</Link> : <Link href="/account/">{user ? "Account" : "Orders"}</Link>}
           <Link href="/cart/" className="cart-link">

@@ -163,6 +163,90 @@ async function main() {
   assert.equal((await j("/products/test-lamp")).status, 404);
   assert.equal((await call("/admin/products/test-lamp", ta, "DELETE")).status, 404);
 
+  // ---------- Vendors ----------
+  const apply = (token: string | null, shopName = "Dev Tools Shop", description = "We sell small dev tools and templates.") =>
+    call("/vendors/apply", token, "POST", { shopName, description });
+  const t2: string = c2.body.token;
+  assert.equal((await apply(null)).status, 401);
+  assert.equal((await apply(t2, "X", "short")).status, 400, "validation");
+  const ap = await apply(t2);
+  assert.equal(ap.status, 201, JSON.stringify(ap.body));
+  assert.equal(ap.body.status, "pending");
+  assert.equal(ap.body.slug, "dev-tools-shop");
+  assert.equal((await apply(t2)).status, 409, "one application per user");
+  assert.equal((await call("/vendors/me", t2)).body.status, "pending");
+  const vp = { slug: "vend-widget", name: "Vendor Widget", category: "Gadgets", price: 20, stock: 5, weightKg: 0.3, emoji: "🔧", description: "A vendor product." };
+  assert.equal((await call("/vendor/products", t2, "POST", vp)).status, 403, "pending vendor cannot list");
+  assert.equal((await call("/vendor/products", null)).status, 401);
+  assert.equal((await call("/admin/vendors", t2)).status, 403, "customers cannot see vendor admin");
+  assert.equal((await j("/vendors/shop/dev-tools-shop")).status, 404, "pending shop is not public");
+
+  const vlist = await call("/admin/vendors", ta);
+  assert.equal(vlist.status, 200);
+  const vrec = vlist.body.find((v: { slug: string }) => v.slug === "dev-tools-shop");
+  assert.equal(vrec.ownerEmail, "cust2@example.com");
+  assert.equal((await call(`/admin/vendors/${vrec.id}/status`, ta, "PATCH", { status: "bogus" })).status, 400);
+  assert.equal((await call(`/admin/vendors/${vrec.id}/status`, t2, "PATCH", { status: "approved" })).status, 403);
+  assert.equal((await call(`/admin/vendors/${vrec.id}/status`, ta, "PATCH", { status: "approved" })).body.status, "approved");
+
+  // Approved vendor manages only their own products
+  const vc = await call("/vendor/products", t2, "POST", vp);
+  assert.equal(vc.status, 201, JSON.stringify(vc.body));
+  assert.equal((await call("/vendor/products", t2, "POST", vp)).status, 409, "slug unique");
+  assert.equal((await call("/vendor/products", t2, "POST", { ...vp, slug: "water-bottle" })).status, 409, "cannot reuse a store product slug");
+  assert.equal((await call("/vendor/products/vend-widget", t2, "PATCH", { price: 22.5, stock: 7 })).status, 200);
+  assert.equal((await call("/vendor/products/water-bottle", t2, "PATCH", { price: 1 })).status, 404, "cannot edit store products");
+  assert.equal((await call("/vendor/products/water-bottle", t2, "DELETE")).status, 404, "cannot delete store products");
+  assert.deepEqual((await call("/vendor/products", t2)).body.map((p: { slug: string }) => p.slug), ["vend-widget"]);
+
+  const c3 = await reg("cust3@example.com");
+  const t3: string = c3.body.token;
+  await apply(t3, "Other Shop", "Another shop that sells things.");
+  const v3 = (await call("/admin/vendors", ta)).body.find((v: { slug: string }) => v.slug === "other-shop");
+  await call(`/admin/vendors/${v3.id}/status`, ta, "PATCH", { status: "approved" });
+  assert.equal((await call("/vendor/products/vend-widget", t3, "PATCH", { price: 1 })).status, 404, "other vendor cannot edit");
+  assert.equal((await call("/vendor/products/vend-widget", t3, "DELETE")).status, 404, "other vendor cannot delete");
+
+  // Public view: shows "sold by", never the internal vendorId
+  const pubv = await j("/products/vend-widget");
+  assert.equal(pubv.status, 200);
+  assert.equal(pubv.body.price, 22.5);
+  assert.deepEqual(pubv.body.vendor, { name: "Dev Tools Shop", slug: "dev-tools-shop" });
+  assert.equal(pubv.body.vendorId, undefined, "vendorId not exposed");
+  assert.equal((await j("/products/water-bottle")).body.vendor, null, "store products have no vendor");
+  const shop = await j("/vendors/shop/dev-tools-shop");
+  assert.equal(shop.status, 200);
+  assert.equal(shop.body.products.length, 1);
+  assert.equal(shop.body.shop.name, "Dev Tools Shop");
+
+  // Orders carry the vendor; each vendor sees only their own items
+  const vo = await order([{ slug: "vend-widget", qty: 2 }, { slug: "yoga-mat", qty: 1 }]);
+  assert.equal(vo.status, 201, JSON.stringify(vo.body));
+  const mineV = await call("/vendor/orders", t2);
+  assert.equal(mineV.status, 200);
+  assert.equal(mineV.body.length, 1);
+  assert.deepEqual(mineV.body[0].items.map((i: { productSlug: string }) => i.productSlug), ["vend-widget"], "vendor sees only own items");
+  assert.equal((await call("/vendor/orders", t3)).body.length, 0, "other vendor sees nothing");
+
+  assert.equal((await j("/vendors/fees")).body.percent, 5, "flat fee published");
+  assert.ok(!Number.isNaN(Date.parse(pubv.body.updatedAt)), "listings carry an updatedAt date");
+
+  // Hiding a product removes it from the shop and blocks new orders; admin still sees it
+  assert.equal((await call("/admin/products/vend-widget", ta, "PATCH", { active: false })).status, 200);
+  assert.equal((await j("/products/vend-widget")).status, 404);
+  assert.equal((await j("/products")).body.some((p: { slug: string }) => p.slug === "vend-widget"), false);
+  assert.equal((await order([{ slug: "vend-widget", qty: 1 }])).status, 400, "hidden product cannot be bought");
+  assert.equal((await call("/admin/products", ta)).body.some((p: { slug: string }) => p.slug === "vend-widget"), true);
+  await call("/vendor/products/vend-widget", t2, "PATCH", { active: true });
+  assert.equal((await j("/products/vend-widget")).status, 200, "vendor can re-list");
+
+  // Suspending a vendor hides everything and locks the dashboard
+  assert.equal((await call(`/admin/vendors/${vrec.id}/status`, ta, "PATCH", { status: "suspended" })).body.status, "suspended");
+  assert.equal((await j("/products/vend-widget")).status, 404);
+  assert.equal((await j("/vendors/shop/dev-tools-shop")).status, 404);
+  assert.equal((await order([{ slug: "vend-widget", qty: 1 }])).status, 400, "suspended vendor's product cannot be bought");
+  assert.equal((await call("/vendor/products", t2)).status, 403);
+
   // Login rate limit: 5 failures, then even the right password is blocked
   const victim = "ratelimit@example.com";
   await reg(victim);

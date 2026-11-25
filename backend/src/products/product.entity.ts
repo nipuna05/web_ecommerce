@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 const money = { to: (v: number) => v, from: (v: string | number) => Number(v) };
 
@@ -36,4 +36,16 @@ export class Product {
 
   @Column("text")
   description: string;
+
+  /** Owning vendor; null = sold by the store itself. */
+  @Column({ type: "varchar", nullable: true })
+  vendorId: string | null;
+
+  /** false = hidden from the shop (by the vendor or an admin). */
+  @Column({ default: true })
+  active: boolean;
+
+  /** Shown as "last updated" so buyers can spot abandoned listings. */
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

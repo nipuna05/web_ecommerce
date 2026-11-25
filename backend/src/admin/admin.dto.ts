@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsNumber, IsOptional, IsString, Length, Matches, Max, Min } from "class-validator";
+import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Length, Matches, Max, Min } from "class-validator";
 
 export const ORDER_STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"] as const;
 
@@ -48,6 +48,7 @@ export class UpdateProductDto {
   @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0.01) @Max(1000) weightKg?: number;
   @IsOptional() @IsString() @Length(1, 16) emoji?: string;
   @IsOptional() @IsString() @Length(1, 2000) description?: string;
+  @IsOptional() @IsBoolean() active?: boolean;
 }
 
 export class UpdateStatusDto {

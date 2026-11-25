@@ -7,6 +7,10 @@ export type Product = {
   reviews: number;
   stock: number;
   weightKg: number; // used for delivery pricing
+  // Only present when products come from the API:
+  vendor?: { name: string; slug: string } | null; // null/undefined = sold by the store
+  updatedAt?: string;
+  active?: boolean;
   emoji: string;
   description: string;
 };
@@ -30,5 +34,11 @@ export const products: Product[] = [
 export const categories = ["All", ...Array.from(new Set(products.map((p) => p.category)))];
 
 export const getProduct = (slug: string) => products.find((p) => p.slug === slug);
+
+// The static site only pre-builds pages for the built-in demo products. Products created later
+// (by admins or vendors) open on a client-side page that reads the slug from the URL.
+const prebuilt = new Set(products.map((p) => p.slug));
+export const productHref = (slug: string) =>
+  prebuilt.has(slug) ? `/products/${slug}/` : `/item/?s=${encodeURIComponent(slug)}`;
 
 export const money = (n: number) => `$${n.toFixed(2)}`;

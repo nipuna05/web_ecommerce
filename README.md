@@ -10,7 +10,8 @@ A mobile-first, multi-category online store: a Next.js storefront plus a NestJS 
 - Cart saved in the browser, guest checkout with delivery options and tax, order history
 - **True-price promise:** every price is shown delivered (item + tax + delivery) for the chosen country, and the cart and checkout match it exactly
 - Delivery priced by country, area (metro, regional, remote) and total weight
-- Accounts, order history, and an admin panel (products, orders, stock) when the API is connected
+- Accounts, order history, and an admin panel (products, orders, stock, vendor approvals) when the API is connected
+- Vendors: apply at `/sell/`, get approved by an admin, then list and manage products at `/vendor/`; public shop pages at `/store/?v=<shop>`; "Sold by" labels, listing-updated dates, and a flat published seller fee with a fee calculator
 - Responsive layout, light and dark theme
 
 On GitHub Pages the site uses built-in demo data (`lib/products.ts`) and keeps orders in the browser only. With the API running, products and orders come from PostgreSQL. No real payments yet. Tax and delivery rates are demo values.
@@ -37,7 +38,9 @@ NestJS + TypeORM. Products and orders are stored in PostgreSQL. Order totals, ta
 | `GET /api/orders/:code?email=` | Look up an order (the email must match) |
 | `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me` | Accounts (JWT). Passwords are hashed with scrypt; login is rate limited |
 | `GET /api/orders/mine` | Signed-in customer's orders |
-| `/api/admin/*` | Admin only: stats, all orders, change order status (cancel restocks), add/edit/delete products |
+| `/api/admin/*` | Admin only: stats, all orders, change order status (cancel restocks), add/edit/hide/delete products, approve or suspend vendors |
+| `POST /api/vendors/apply`, `GET /api/vendors/me`, `GET /api/vendors/fees`, `GET /api/vendors/shop/:slug` | Vendor application, own status, published flat fee (`COMMISSION_PERCENT`, default 5), public shop page |
+| `/api/vendor/*` | Approved vendors only: list, add, edit, hide and delete **their own** products; see orders containing their items (only their items) |
 
 Orders placed while signed in are linked to the account; guests can still check out. The admin panel is at `/admin/`.
 

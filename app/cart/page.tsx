@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
-import { money } from "@/lib/products";
+import { money, productHref } from "@/lib/products";
 import { useCatalog } from "@/lib/catalog";
 import { orderTotals } from "@/lib/pricing";
 import { useRegion } from "@/lib/region";
@@ -34,7 +34,7 @@ export default function CartPage() {
             <div className="cart-line" key={l.slug}>
               <span className="cart-emoji">{p.emoji}</span>
               <div className="cart-info">
-                <Link href={`/products/${p.slug}/`}>{p.name}</Link>
+                <Link href={productHref(p.slug)}>{p.name}</Link>
                 <div className="small muted">{money(p.price)} each</div>
               </div>
               <input

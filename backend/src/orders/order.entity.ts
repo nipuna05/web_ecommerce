@@ -68,6 +68,10 @@ export class OrderItem {
   @Column()
   productSlug: string;
 
+  /** Vendor who sold this line (null = the store). Used for vendor order lists and, later, payouts. */
+  @Column({ type: "varchar", nullable: true })
+  vendorId: string | null;
+
   @Column()
   name: string;
 

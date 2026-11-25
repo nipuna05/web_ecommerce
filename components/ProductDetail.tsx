@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCatalog } from "@/lib/catalog";
 import AddToCart from "./AddToCart";
 import ProductCard from "./ProductCard";
+import SoldBy, { Freshness } from "./SoldBy";
 import TruePrice from "./TruePrice";
 
 export default function ProductDetail({ slug }: { slug: string }) {
@@ -28,9 +29,11 @@ export default function ProductDetail({ slug }: { slug: string }) {
         <div className="detail-img"><span>{p.emoji}</span></div>
         <div>
           <h1>{p.name}</h1>
+          <SoldBy p={p} />
           <div className="small">⭐ {p.rating} <span className="muted">({p.reviews} reviews)</span></div>
           <TruePrice price={p.price} weightKg={p.weightKg} detail />
           <p>{p.description}</p>
+          <Freshness updatedAt={p.vendor ? p.updatedAt : undefined} />
           <p className="small muted">
             {p.stock > 0 ? (p.stock <= 10 ? `Only ${p.stock} left` : "In stock") : "Out of stock"}
           </p>

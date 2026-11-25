@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { DataSource } from "typeorm";
 import { orderTotals, regions } from "../pricing";
 import { Product } from "../products/product.entity";
+import { Vendor } from "../vendors/vendor.entity";
 import { CreateOrderDto } from "./create-order.dto";
 import { Order, OrderItem } from "./order.entity";
 
@@ -29,6 +30,9 @@ export class OrdersService {
       for (const [slug, qty] of wanted) {
         const p = await m.findOne(Product, { where: { slug } });
         if (!p) throw new BadRequestException(`Unknown product: ${slug}`);
+        // Hidden products, or products of vendors that are no longer approved, cannot be bought.
+        const vendorOk = !p.vendorId || (await m.findOne(Vendor, { where: { id: p.vendorId } }))?.status === "approved";
+        if (!p.active || !vendorOk) throw new BadRequestException(`${p.name} is no longer available`);
         // Atomic stock decrement: only succeeds if enough stock remains.
         const res = await m
           .createQueryBuilder()
@@ -40,7 +44,7 @@ export class OrdersService {
 
         subtotal += p.price * qty;
         weightKg += p.weightKg * qty;
-        items.push(m.create(OrderItem, { productSlug: p.slug, name: p.name, unitPrice: p.price, qty }));
+        items.push(m.create(OrderItem, { productSlug: p.slug, vendorId: p.vendorId, name: p.name, unitPrice: p.price, qty }));
       }
 
       const { subtotal: sub, tax, shipping, total } = orderTotals(subtotal, weightKg, region, zone, dto.shippingMethod === "express");

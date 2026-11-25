@@ -5,6 +5,8 @@ import { AdminGuard } from "../auth/auth.guard";
 import { Order } from "../orders/order.entity";
 import { OrdersService } from "../orders/orders.service";
 import { Product } from "../products/product.entity";
+import { VendorStatusDto } from "../vendors/vendors.dto";
+import { VendorsService } from "../vendors/vendors.service";
 import { CreateProductDto, UpdateProductDto, UpdateStatusDto } from "./admin.dto";
 
 /** Everything under /api/admin requires a signed-in admin. */
@@ -13,6 +15,7 @@ import { CreateProductDto, UpdateProductDto, UpdateStatusDto } from "./admin.dto
 export class AdminController {
   constructor(
     private readonly orders: OrdersService,
+    private readonly vendors: VendorsService,
     @InjectRepository(Product) private readonly products: Repository<Product>,
     @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
   ) {}
@@ -32,6 +35,22 @@ export class AdminController {
       revenue: Math.round(live.reduce((s, o) => s + o.total, 0) * 100) / 100,
       lowStock: lowStock.map((p) => ({ slug: p.slug, name: p.name, stock: p.stock })),
     };
+  }
+
+  /** All products including hidden ones and vendors' products (the public list hides those). */
+  @Get("products")
+  listProducts() {
+    return this.products.find({ order: { name: "ASC" } });
+  }
+
+  @Get("vendors")
+  listVendors() {
+    return this.vendors.listForAdmin();
+  }
+
+  @Patch("vendors/:id/status")
+  setVendorStatus(@Param("id") id: string, @Body() dto: VendorStatusDto) {
+    return this.vendors.setStatus(id, dto.status);
   }
 
   @Get("orders")

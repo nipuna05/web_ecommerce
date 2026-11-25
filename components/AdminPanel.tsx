@@ -8,11 +8,22 @@ import { money, type Product } from "@/lib/products";
 
 const STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"];
 
+type AdminVendor = {
+  id: string;
+  shopName: string;
+  slug: string;
+  description: string;
+  status: string;
+  ownerName?: string;
+  ownerEmail?: string;
+};
+
 type Stats = { orders: number; pending: number; revenue: number; lowStock: { slug: string; name: string; stock: number }[] };
 
 export default function AdminPanel() {
   const { user, token, loading } = useAuth();
-  const [tab, setTab] = useState<"dashboard" | "orders" | "products">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "orders" | "products" | "vendors">("dashboard");
+  const [vendors, setVendors] = useState<AdminVendor[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -23,14 +34,16 @@ export default function AdminPanel() {
   const reload = useCallback(async () => {
     if (!token) return;
     try {
-      const [s, o, p] = await Promise.all([
+      const [s, o, p, v] = await Promise.all([
         apiRequest<Stats>("/admin/stats", { token }),
         apiRequest<ApiOrder[]>("/admin/orders", { token }),
-        apiRequest<Product[]>("/products"),
+        apiRequest<Product[]>("/admin/products", { token }), // includes hidden and vendor products
+        apiRequest<AdminVendor[]>("/admin/vendors", { token }),
       ]);
       setStats(s);
       setOrders(o);
       setProducts(p);
+      setVendors(v);
     } catch (e) {
       fail(e);
     }
@@ -61,6 +74,15 @@ export default function AdminPanel() {
 
   const saveProduct = (p: Product, price: number, stock: number) =>
     run(() => apiRequest(`/admin/products/${p.slug}`, { method: "PATCH", token, body: { price, stock } }), `Saved ${p.name}`);
+
+  const toggleProduct = (p: Product) =>
+    run(
+      () => apiRequest(`/admin/products/${p.slug}`, { method: "PATCH", token, body: { active: p.active === false } }),
+      p.active === false ? `${p.name} is visible again` : `${p.name} is hidden from the shop`,
+    );
+
+  const setVendorStatus = (v: AdminVendor, status: string) =>
+    run(() => apiRequest(`/admin/vendors/${v.id}/status`, { method: "PATCH", token, body: { status } }), `${v.shopName} is now ${status}`);
 
   const removeProduct = (p: Product) => {
     if (!confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
@@ -96,9 +118,10 @@ export default function AdminPanel() {
     <>
       <h1>Admin</h1>
       <div className="tabs" role="tablist">
-        {(["dashboard", "orders", "products"] as const).map((t) => (
+        {(["dashboard", "orders", "products", "vendors"] as const).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "tab on" : "tab"} onClick={() => setTab(t)}>
             {t[0].toUpperCase() + t.slice(1)}
+            {t === "vendors" && vendors.some((v) => v.status === "pending") ? ` (${vendors.filter((v) => v.status === "pending").length} new)` : ""}
           </button>
         ))}
       </div>
@@ -149,6 +172,31 @@ export default function AdminPanel() {
         )
       )}
 
+      {tab === "vendors" && (
+        vendors.length === 0 ? <p>No vendor applications yet.</p> : (
+          <div className="tablewrap">
+            <table className="table">
+              <thead><tr><th>Shop</th><th>Owner</th><th>About</th><th>Status</th><th>Change</th></tr></thead>
+              <tbody>
+                {vendors.map((v) => (
+                  <tr key={v.id}>
+                    <td>{v.shopName}<div className="small muted">/{v.slug}</div></td>
+                    <td>{v.ownerName}<div className="small muted">{v.ownerEmail}</div></td>
+                    <td className="small">{v.description}</td>
+                    <td><span className={`pill pill-${v.status === "approved" ? "delivered" : v.status === "pending" ? "paid" : "cancelled"}`}>{v.status}</span></td>
+                    <td>
+                      <select value={v.status} aria-label={`Status for ${v.shopName}`} onChange={(e) => void setVendorStatus(v, e.target.value)}>
+                        {["pending", "approved", "rejected", "suspended"].map((s) => <option key={s}>{s}</option>)}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+
       {tab === "products" && (
         <>
           <h2>Add product</h2>
@@ -169,7 +217,7 @@ export default function AdminPanel() {
             <table className="table">
               <thead><tr><th>Product</th><th>Price (USD)</th><th>Stock</th><th></th></tr></thead>
               <tbody>
-                {products.map((p) => <ProductRow key={`${p.slug}:${p.price}:${p.stock}`} p={p} onSave={saveProduct} onDelete={removeProduct} />)}
+                {products.map((p) => <ProductRow key={`${p.slug}:${p.price}:${p.stock}:${p.active}`} p={p} onSave={saveProduct} onDelete={removeProduct} onToggle={toggleProduct} />)}
               </tbody>
             </table>
           </div>
@@ -179,18 +227,19 @@ export default function AdminPanel() {
   );
 }
 
-function ProductRow({ p, onSave, onDelete }: { p: Product; onSave: (p: Product, price: number, stock: number) => void; onDelete: (p: Product) => void }) {
+function ProductRow({ p, onSave, onDelete, onToggle }: { p: Product; onSave: (p: Product, price: number, stock: number) => void; onDelete: (p: Product) => void; onToggle: (p: Product) => void }) {
   const [price, setPrice] = useState(String(p.price));
   const [stock, setStock] = useState(String(p.stock));
   const dirty = Number(price) !== p.price || Number(stock) !== p.stock;
   const valid = Number(price) >= 0.01 && Number.isInteger(Number(stock)) && Number(stock) >= 0;
   return (
     <tr>
-      <td>{p.emoji} {p.name}<div className="small muted">{p.slug} · {p.category}</div></td>
+      <td>{p.emoji} {p.name}{p.active === false && <span className="pill"> hidden</span>}<div className="small muted">{p.slug} · {p.category}</div></td>
       <td><input type="number" step="0.01" min="0.01" value={price} onChange={(e) => setPrice(e.target.value)} aria-label={`Price for ${p.name}`} className="narrow" /></td>
       <td><input type="number" step="1" min="0" value={stock} onChange={(e) => setStock(e.target.value)} aria-label={`Stock for ${p.name}`} className="narrow" /></td>
       <td>
         <button className="btn btn-sm" disabled={!dirty || !valid} onClick={() => onSave(p, Number(price), Number(stock))}>Save</button>{" "}
+        <button className="link-btn" onClick={() => onToggle(p)}>{p.active === false ? "Show" : "Hide"}</button>{" "}
         <button className="link-btn" onClick={() => onDelete(p)}>Delete</button>
       </td>
     </tr>
