@@ -92,3 +92,5 @@ fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px;
 .tp-break li { display: flex; justify-content: space-between; padding: 2px 0; }
 .tp-break .tp-total { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 6px; font-weight: 700; }
 @media (max-width: 600px) { .region .muted { display: none; } .nav { gap: 10px; } }
+.error { color: #dc2626; font-size: .9rem; margin: 0; }
+.btn:disabled { opacity: .6; cursor: not-allowed; }

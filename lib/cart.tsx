@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { getProduct } from "./products";
+import { useCatalog } from "./catalog";
 
 type Line = { slug: string; qty: number };
 
@@ -21,6 +21,7 @@ const KEY = "ecom_cart_v1";
 export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<Line[]>([]);
   const [ready, setReady] = useState(false);
+  const { getProduct } = useCatalog();
 
   useEffect(() => {
     try {
@@ -54,7 +55,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const count = lines.reduce((n, l) => n + l.qty, 0);
     const subtotal = lines.reduce((n, l) => n + (getProduct(l.slug)?.price ?? 0) * l.qty, 0);
     return { lines, count, subtotal, add, setQty, remove, clear };
-  }, [lines]);
+  }, [lines, getProduct]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

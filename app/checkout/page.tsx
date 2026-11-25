@@ -3,7 +3,9 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
-import { getProduct, money } from "@/lib/products";
+import { money } from "@/lib/products";
+import { useCatalog } from "@/lib/catalog";
+import { apiEnabled, createOrder } from "@/lib/api";
 import { orderTotals } from "@/lib/pricing";
 import { useRegion } from "@/lib/region";
 
@@ -12,22 +14,53 @@ export default function CheckoutPage() {
   const { region } = useRegion();
   const [ship, setShip] = useState<"standard" | "express">("standard");
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { getProduct } = useCatalog();
 
   const std = orderTotals(subtotal, region, false);
   const t = orderTotals(subtotal, region, ship === "express");
   const { tax, shipping, total } = t;
 
-  function submit(e: FormEvent<HTMLFormElement>) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (busy) return;
+    setError(null);
     const f = new FormData(e.currentTarget);
-    const id = "ORD-" + Date.now().toString(36).toUpperCase();
+    const name = String(f.get("name"));
+    const email = String(f.get("email"));
+    const address = String(f.get("address"));
+
+    let id = "ORD-" + Date.now().toString(36).toUpperCase();
+    let orderTotal = total;
+    if (apiEnabled) {
+      // The server recomputes prices and checks stock; we only send what was chosen.
+      setBusy(true);
+      try {
+        const saved = await createOrder({
+          name,
+          email,
+          address,
+          regionCode: region.code,
+          shippingMethod: ship,
+          items: lines.map((l) => ({ slug: l.slug, qty: l.qty })),
+        });
+        id = saved.code;
+        orderTotal = saved.total;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not place the order.");
+        setBusy(false);
+        return;
+      }
+      setBusy(false);
+    }
     const order = {
       id,
       date: new Date().toISOString(),
-      name: String(f.get("name")),
-      email: String(f.get("email")),
-      address: String(f.get("address")),
-      total,
+      name,
+      email,
+      address,
+      total: orderTotal,
       items: lines.map((l) => ({ ...l, name: getProduct(l.slug)?.name })),
     };
     try {
@@ -73,7 +106,8 @@ export default function CheckoutPage() {
             <label className="inline"><input type="radio" checked={ship === "express"} onChange={() => setShip("express")} /> Express ({region.expressDays}) {money(orderTotals(subtotal, region, true).shipping)}</label>
           </fieldset>
           <p className="small muted">Payment is a placeholder in this demo. A real gateway comes with the backend.</p>
-          <button className="btn" type="submit">Place order</button>
+          {error && <p className="error" role="alert">{error}</p>}
+          <button className="btn" type="submit" disabled={busy}>{busy ? "Placing order…" : "Place order"}</button>
         </form>
         <aside className="summary">
           <h2>Order summary</h2>

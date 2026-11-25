@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { categories, products } from "@/lib/products";
+import { useCatalog } from "@/lib/catalog";
 import ProductCard from "./ProductCard";
 
 export default function ProductBrowser() {
+  const { products, categories } = useCatalog();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("All");
   const [sort, setSort] = useState("featured");
@@ -15,7 +16,7 @@ export default function ProductBrowser() {
   useEffect(() => {
     const c = new URLSearchParams(window.location.search).get("cat");
     if (c && categories.includes(c)) setCat(c);
-  }, []);
+  }, [categories]);
 
   const list = useMemo(() => {
     let r = products.filter(
@@ -29,7 +30,7 @@ export default function ProductBrowser() {
     if (sort === "price-desc") r = [...r].sort((a, b) => b.price - a.price);
     if (sort === "rating") r = [...r].sort((a, b) => b.rating - a.rating);
     return r;
-  }, [q, cat, sort, maxPrice, inStock]);
+  }, [products, q, cat, sort, maxPrice, inStock]);
 
   return (
     <div>

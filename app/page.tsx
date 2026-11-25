@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { categories, products } from "@/lib/products";
-import ProductCard from "@/components/ProductCard";
+import { CategoryChips, TopRated } from "@/components/HomeSections";
 
 export default function Home() {
-  const featured = [...products].sort((a, b) => b.rating - a.rating).slice(0, 4);
   return (
     <>
       <section className="hero">
@@ -14,16 +12,12 @@ export default function Home() {
 
       <section>
         <h2>Shop by category</h2>
-        <div className="chips">
-          {categories.filter((c) => c !== "All").map((c) => (
-            <Link key={c} href={`/products/?cat=${encodeURIComponent(c)}`} className="chip">{c}</Link>
-          ))}
-        </div>
+        <CategoryChips />
       </section>
 
       <section>
         <h2>Top rated</h2>
-        <div className="grid">{featured.map((p) => <ProductCard key={p.slug} p={p} />)}</div>
+        <TopRated />
       </section>
 
       <section className="perks">

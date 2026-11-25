@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
-import { getProduct, money } from "@/lib/products";
+import { money } from "@/lib/products";
+import { useCatalog } from "@/lib/catalog";
 import { orderTotals } from "@/lib/pricing";
 import { useRegion } from "@/lib/region";
 
 export default function CartPage() {
   const { lines, subtotal, setQty, remove } = useCart();
   const { region } = useRegion();
+  const { getProduct } = useCatalog();
   const t = orderTotals(subtotal, region);
 
   if (lines.length === 0) {
