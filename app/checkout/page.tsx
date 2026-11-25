@@ -6,12 +6,14 @@ import { useCart } from "@/lib/cart";
 import { money } from "@/lib/products";
 import { useCatalog } from "@/lib/catalog";
 import { apiEnabled, createOrder } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { orderTotals } from "@/lib/pricing";
 import { useRegion } from "@/lib/region";
 
 export default function CheckoutPage() {
   const { lines, subtotal, weightKg, clear } = useCart();
   const { region, zone } = useRegion();
+  const { user, token } = useAuth();
   const [ship, setShip] = useState<"standard" | "express">("standard");
   const [orderId, setOrderId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,15 +40,18 @@ export default function CheckoutPage() {
       // The server recomputes prices and checks stock; we only send what was chosen.
       setBusy(true);
       try {
-        const saved = await createOrder({
-          name,
-          email,
-          address,
-          regionCode: region.code,
-          zoneCode: zone.code,
-          shippingMethod: ship,
-          items: lines.map((l) => ({ slug: l.slug, qty: l.qty })),
-        });
+        const saved = await createOrder(
+          {
+            name,
+            email,
+            address,
+            regionCode: region.code,
+            zoneCode: zone.code,
+            shippingMethod: ship,
+            items: lines.map((l) => ({ slug: l.slug, qty: l.qty })),
+          },
+          token, // links the order to the signed-in account (guests send no token)
+        );
         id = saved.code;
         orderTotal = saved.total;
       } catch (err) {
@@ -98,9 +103,9 @@ export default function CheckoutPage() {
       <h1>Checkout</h1>
       <div className="checkout">
         <form onSubmit={submit} className="form">
-          <h2>Guest checkout</h2>
-          <label>Full name<input name="name" required autoComplete="name" /></label>
-          <label>Email<input name="email" type="email" required autoComplete="email" /></label>
+          <h2>{user ? `Checkout as ${user.name}` : "Guest checkout"}</h2>
+          <label>Full name<input name="name" required autoComplete="name" defaultValue={user?.name ?? ""} key={`n-${user?.id ?? "guest"}`} /></label>
+          <label>Email<input name="email" type="email" required autoComplete="email" defaultValue={user?.email ?? ""} key={`e-${user?.id ?? "guest"}`} /></label>
           <p className="small">
             📍 Delivering to <strong>{zone.name}, {region.name}</strong>. To change the area, use the "Deliver to" bar at the top; prices update.
           </p>

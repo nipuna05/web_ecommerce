@@ -11,7 +11,7 @@ import { Order, OrderItem } from "./order.entity";
 export class OrdersService {
   constructor(@InjectDataSource() private readonly ds: DataSource) {}
 
-  async create(dto: CreateOrderDto) {
+  async create(dto: CreateOrderDto, userId: string | null = null) {
     const region = regions.find((r) => r.code === dto.regionCode);
     if (!region) throw new BadRequestException("Unsupported delivery country");
     const zone = region.zones.find((z) => z.code === dto.zoneCode);
@@ -46,6 +46,8 @@ export class OrdersService {
       const { subtotal: sub, tax, shipping, total } = orderTotals(subtotal, weightKg, region, zone, dto.shippingMethod === "express");
       const order = m.create(Order, {
         code: "ORD-" + randomBytes(5).toString("hex").toUpperCase(),
+        userId,
+        status: "pending",
         customerName: dto.name,
         email: dto.email.toLowerCase(),
         address: dto.address,
@@ -59,6 +61,37 @@ export class OrdersService {
         total,
         items,
       });
+      return m.save(order);
+    });
+  }
+
+  /** All orders for a signed-in customer, newest first. */
+  listForUser(userId: string) {
+    return this.ds.getRepository(Order).find({ where: { userId }, order: { createdAt: "DESC" } });
+  }
+
+  /** Every order (admin), newest first. */
+  listAll() {
+    return this.ds.getRepository(Order).find({ order: { createdAt: "DESC" } });
+  }
+
+  /** Change an order's status (admin). Cancelling returns the items to stock; cancelled orders are final. */
+  async setStatus(code: string, status: string) {
+    return this.ds.transaction(async (m) => {
+      const order = await m.findOne(Order, { where: { code } });
+      if (!order) throw new NotFoundException("Order not found");
+      if (order.status === "cancelled") throw new BadRequestException("Cancelled orders cannot be changed");
+      if (status === "cancelled") {
+        for (const i of order.items) {
+          await m
+            .createQueryBuilder()
+            .update(Product)
+            .set({ stock: () => "stock + :qty" })
+            .where("slug = :slug", { slug: i.productSlug, qty: i.qty })
+            .execute();
+        }
+      }
+      order.status = status;
       return m.save(order);
     });
   }

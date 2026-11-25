@@ -1,5 +1,7 @@
 // End-to-end smoke test: boots the API with an in-memory DB and exercises the main flows.
 process.env.DB_TYPE = "sqljs";
+process.env.ADMIN_EMAIL = "admin@test.local";
+process.env.ADMIN_PASSWORD = "AdminPass123";
 import assert from "node:assert/strict";
 import { createApp } from "./main";
 
@@ -78,6 +80,96 @@ async function main() {
   assert.equal((await j(`/orders/${code}?email=test@example.com`)).status, 200);
   assert.equal((await j(`/orders/${code}?email=other@example.com`)).status, 404);
   assert.equal((await j(`/orders/${code}`)).status, 404);
+
+  // ---------- Accounts ----------
+  const call = (path: string, token: string | null, method = "GET", body?: unknown) =>
+    j(path, {
+      method,
+      headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  const reg = (email: string, password = "Password123", name = "Cust") => call("/auth/register", null, "POST", { name, email, password });
+
+  assert.equal((await reg("short@example.com", "short")).status, 400, "short password rejected");
+  const c1 = await reg("Cust1@Example.com");
+  assert.equal(c1.status, 201, JSON.stringify(c1.body));
+  assert.equal(c1.body.user.email, "cust1@example.com", "email normalised");
+  assert.equal(c1.body.user.role, "customer");
+  assert.equal(c1.body.user.passwordHash, undefined, "hash never returned");
+  assert.equal((await reg("cust1@example.com")).status, 409, "duplicate email");
+  assert.equal((await call("/auth/login", null, "POST", { email: "cust1@example.com", password: "wrong-password" })).status, 401);
+  assert.equal((await call("/auth/login", null, "POST", { email: "nobody@example.com", password: "Password123" })).status, 401);
+  const login1 = await call("/auth/login", null, "POST", { email: "cust1@example.com", password: "Password123" });
+  assert.equal(login1.status, 201);
+  const t1: string = login1.body.token;
+  assert.equal((await call("/auth/me", t1)).body.email, "cust1@example.com");
+  assert.equal((await call("/auth/me", null)).status, 401);
+  assert.equal((await call("/auth/me", "garbage.token.value")).status, 401);
+
+  // Orders link to the account; guests still can order; "mine" is private
+  const mineOrder = await call("/orders", t1, "POST", {
+    name: "Cust", email: "cust1@example.com", address: "5 Account Road", regionCode: "US", zoneCode: "metro",
+    shippingMethod: "standard", items: [{ slug: "water-bottle", qty: 1 }],
+  });
+  assert.equal(mineOrder.status, 201);
+  assert.equal(mineOrder.body.userId, c1.body.user.id);
+  assert.equal(ok.body.userId, null, "guest order has no user");
+  const mine = await call("/orders/mine", t1);
+  assert.equal(mine.status, 200);
+  assert.deepEqual(mine.body.map((o: { code: string }) => o.code), [mineOrder.body.code]);
+  assert.equal((await call("/orders/mine", null)).status, 401);
+  const c2 = await reg("cust2@example.com");
+  assert.equal((await call("/orders/mine", c2.body.token)).body.length, 0, "other customer sees nothing");
+
+  // ---------- Admin ----------
+  const adminLogin = await call("/auth/login", null, "POST", { email: "admin@test.local", password: "AdminPass123" });
+  assert.equal(adminLogin.status, 201, JSON.stringify(adminLogin.body));
+  assert.equal(adminLogin.body.user.role, "admin");
+  const ta: string = adminLogin.body.token;
+  for (const p of ["/admin/orders", "/admin/stats"]) {
+    assert.equal((await call(p, null)).status, 401, `${p} needs login`);
+    assert.equal((await call(p, t1)).status, 403, `${p} forbidden for customers`);
+    assert.equal((await call(p, ta)).status, 200, `${p} ok for admin`);
+  }
+  assert.equal((await call("/admin/products", t1, "POST", {})).status, 403);
+  assert.ok((await call("/admin/orders", ta)).body.length >= 5, "admin sees all orders");
+
+  const np = { slug: "test-lamp", name: "Test Lamp", category: "Home", price: 10.5, stock: 3, weightKg: 0.7, emoji: "🪔", description: "A test product." };
+  const created = await call("/admin/products", ta, "POST", np);
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal((await call("/admin/products", ta, "POST", np)).status, 409, "duplicate slug");
+  assert.equal((await call("/admin/products", ta, "POST", { ...np, slug: "Bad Slug" })).status, 400);
+  assert.equal((await call("/admin/products", ta, "POST", { ...np, slug: "x-1", price: -5 })).status, 400);
+  assert.equal((await call("/admin/products/test-lamp", ta, "PATCH", { price: 12.25, stock: 9 })).status, 200);
+  const pub = await j("/products/test-lamp");
+  assert.equal(pub.body.price, 12.25);
+  assert.equal(pub.body.stock, 9);
+  assert.equal((await call("/admin/products/test-lamp", ta, "PATCH", { slug: "hack" })).status, 400, "slug cannot be changed");
+  assert.equal((await call("/admin/stats", ta)).body.lowStock.some((x: { slug: string }) => x.slug === "cotton-bedsheet"), true);
+
+  // Order status + restock on cancel
+  const before = (await j("/products/yoga-mat")).body.stock;
+  const o3 = await order([{ slug: "yoga-mat", qty: 3 }]);
+  assert.equal((await j("/products/yoga-mat")).body.stock, before - 3);
+  assert.equal((await call(`/admin/orders/${o3.body.code}/status`, ta, "PATCH", { status: "shipped" })).body.status, "shipped");
+  assert.equal((await call(`/admin/orders/${o3.body.code}/status`, ta, "PATCH", { status: "teleported" })).status, 400);
+  assert.equal((await call(`/admin/orders/${o3.body.code}/status`, t1, "PATCH", { status: "paid" })).status, 403);
+  assert.equal((await call(`/admin/orders/${o3.body.code}/status`, ta, "PATCH", { status: "cancelled" })).body.status, "cancelled");
+  assert.equal((await j("/products/yoga-mat")).body.stock, before, "cancel restores stock");
+  assert.equal((await call(`/admin/orders/${o3.body.code}/status`, ta, "PATCH", { status: "paid" })).status, 400, "cancelled is final");
+  assert.equal((await call("/admin/orders/ORD-NOPE/status", ta, "PATCH", { status: "paid" })).status, 404);
+
+  assert.equal((await call("/admin/products/test-lamp", ta, "DELETE")).status, 200);
+  assert.equal((await j("/products/test-lamp")).status, 404);
+  assert.equal((await call("/admin/products/test-lamp", ta, "DELETE")).status, 404);
+
+  // Login rate limit: 5 failures, then even the right password is blocked
+  const victim = "ratelimit@example.com";
+  await reg(victim);
+  for (let i = 0; i < 5; i++) {
+    assert.equal((await call("/auth/login", null, "POST", { email: victim, password: "bad-password" + i })).status, 401);
+  }
+  assert.equal((await call("/auth/login", null, "POST", { email: victim, password: "Password123" })).status, 429, "locked after 5 failures");
 
   await app.close();
   console.log("ALL SMOKE TESTS PASSED");

@@ -5,28 +5,49 @@ export const apiEnabled = API_URL.length > 0;
 export type ApiOrder = {
   code: string;
   createdAt: string;
+  status: string;
   total: number;
-  items: { productSlug: string; name: string; qty: number }[];
-};
-
-export async function createOrder(body: {
-  name: string;
+  subtotal: number;
+  tax: number;
+  shipping: number;
   email: string;
+  customerName: string;
   address: string;
   regionCode: string;
   zoneCode: string;
-  shippingMethod: "standard" | "express";
-  items: { slug: string; qty: number }[];
-}): Promise<ApiOrder> {
-  const res = await fetch(`${API_URL}/orders`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
+  items: { productSlug: string; name: string; qty: number; unitPrice: number }[];
+};
+
+/** JSON request to the API. Throws Error(message) with the server's message on failure. */
+export async function apiRequest<T = unknown>(
+  path: string,
+  opts: { method?: string; body?: unknown; token?: string | null } = {},
+): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: opts.method ?? "GET",
+    headers: {
+      "content-type": "application/json",
+      ...(opts.token ? { authorization: `Bearer ${opts.token}` } : {}),
+    },
+    body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
   });
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     const msg = Array.isArray(data?.message) ? data.message.join(", ") : data?.message;
-    throw new Error(msg || "Could not place the order. Please try again.");
+    throw new Error(msg || "Something went wrong. Please try again.");
   }
-  return data;
+  return data as T;
 }
+
+export const createOrder = (
+  body: {
+    name: string;
+    email: string;
+    address: string;
+    regionCode: string;
+    zoneCode: string;
+    shippingMethod: "standard" | "express";
+    items: { slug: string; qty: number }[];
+  },
+  token?: string | null,
+) => apiRequest<ApiOrder>("/orders", { method: "POST", body, token });

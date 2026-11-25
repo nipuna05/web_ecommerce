@@ -10,6 +10,13 @@ export class Order {
   @Column({ unique: true })
   code: string;
 
+  /** Set when the order was placed while signed in; null for guest orders. */
+  @Column({ type: "varchar", nullable: true })
+  userId: string | null;
+
+  @Column({ default: "pending" })
+  status: string;
+
   @Column()
   customerName: string;
 

@@ -1,11 +1,14 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule, type TypeOrmModuleOptions } from "@nestjs/typeorm";
+import { AdminModule } from "./admin/admin.module";
+import { AuthModule } from "./auth/auth.module";
+import { User } from "./auth/user.entity";
 import { Order, OrderItem } from "./orders/order.entity";
 import { OrdersModule } from "./orders/orders.module";
 import { Product } from "./products/product.entity";
 import { ProductsModule } from "./products/products.module";
 
-const entities = [Product, Order, OrderItem];
+const entities = [Product, Order, OrderItem, User];
 
 /**
  * DB_TYPE=postgres (default): uses DATABASE_URL, or DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME.
@@ -30,6 +33,6 @@ function dbOptions(): TypeOrmModuleOptions {
 }
 
 @Module({
-  imports: [TypeOrmModule.forRoot(dbOptions()), ProductsModule, OrdersModule],
+  imports: [TypeOrmModule.forRoot(dbOptions()), AuthModule, ProductsModule, OrdersModule, AdminModule],
 })
 export class AppModule {}
