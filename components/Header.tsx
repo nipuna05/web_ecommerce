@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
+import RegionPicker from "./RegionPicker";
 
 export default function Header() {
   const { count } = useCart();
@@ -10,6 +11,7 @@ export default function Header() {
       <div className="container header-inner">
         <Link href="/" className="logo">🛍️ ShopEase</Link>
         <nav className="nav">
+          <RegionPicker />
           <Link href="/products/">Shop</Link>
           <Link href="/account/">Account</Link>
           <Link href="/cart/" className="cart-link">

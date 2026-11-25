@@ -8,6 +8,7 @@ A mobile-first, multi-category online store. Phase 1 is a static storefront (Nex
 
 - Home, product list (search, category, sort, price and stock filters), product page
 - Cart saved in the browser, guest checkout with delivery options and tax, demo order history
+- **True-price promise:** every price is shown delivered (item + tax + delivery) for the chosen country, and the cart and checkout match it exactly
 - Responsive layout, light and dark theme
 
 No backend yet: products live in `lib/products.ts`, and orders are stored in the browser only. No real payments.
@@ -28,7 +29,7 @@ npm run build    # static site in ./out
 ## Roadmap
 
 1. **Phase 1:** static storefront (this)
-2. **Phase 2:** NestJS API, PostgreSQL, real accounts, payments, reviews, true-price promise, price history
+2. **Phase 2:** NestJS API, PostgreSQL, real accounts, payments, reviews, real tax and delivery rules, price history
 3. **Phase 3:** AI shopping assistant, group cart, owner's wallet, agent-ready catalog
 
 Hosting note: GitHub Pages serves static files only, so the Phase 2 backend needs a separate host (Azure, Render, etc.).

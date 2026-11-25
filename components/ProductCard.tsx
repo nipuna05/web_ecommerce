@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { money, type Product } from "@/lib/products";
+import type { Product } from "@/lib/products";
+import TruePrice from "./TruePrice";
 import { useCart } from "@/lib/cart";
 
 export default function ProductCard({ p }: { p: Product }) {
@@ -16,7 +17,7 @@ export default function ProductCard({ p }: { p: Product }) {
         <Link href={`/products/${p.slug}/`} className="card-title">{p.name}</Link>
         <div className="small">⭐ {p.rating} <span className="muted">({p.reviews})</span></div>
         <div className="card-row">
-          <strong>{money(p.price)}</strong>
+          <TruePrice price={p.price} />
           {p.stock > 0 ? (
             <button className="btn btn-sm" onClick={() => add(p.slug)}>Add</button>
           ) : (

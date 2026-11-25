@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProduct, money, products } from "@/lib/products";
+import { getProduct, products } from "@/lib/products";
+import TruePrice from "@/components/TruePrice";
 import AddToCart from "@/components/AddToCart";
 import ProductCard from "@/components/ProductCard";
 
@@ -30,7 +31,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         <div>
           <h1>{p.name}</h1>
           <div className="small">⭐ {p.rating} <span className="muted">({p.reviews} reviews)</span></div>
-          <p className="price">{money(p.price)}</p>
+          <TruePrice price={p.price} detail />
           <p>{p.description}</p>
           <p className="small muted">
             {p.stock > 0 ? (p.stock <= 10 ? `Only ${p.stock} left` : "In stock") : "Out of stock"}

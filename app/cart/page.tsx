@@ -3,9 +3,13 @@
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { getProduct, money } from "@/lib/products";
+import { orderTotals } from "@/lib/pricing";
+import { useRegion } from "@/lib/region";
 
 export default function CartPage() {
   const { lines, subtotal, setQty, remove } = useCart();
+  const { region } = useRegion();
+  const t = orderTotals(subtotal, region);
 
   if (lines.length === 0) {
     return (
@@ -46,8 +50,14 @@ export default function CartPage() {
         })}
       </div>
       <div className="summary">
-        <div className="row"><span>Subtotal</span><strong>{money(subtotal)}</strong></div>
-        <p className="small muted">Delivery and tax are shown at checkout.</p>
+        <div className="row"><span>Items</span><span>{money(t.subtotal)}</span></div>
+        <div className="row"><span>Tax ({Math.round(region.taxRate * 100)}%)</span><span>{money(t.tax)}</span></div>
+        <div className="row"><span>Delivery to {region.name}</span><span>{t.freeShipping ? "Free" : money(t.shipping)}</span></div>
+        <div className="row total"><strong>Total</strong><strong>{money(t.total)}</strong></div>
+        {!t.freeShipping && (
+          <p className="small muted">Add {money(region.freeShippingOver - t.subtotal)} more for free delivery.</p>
+        )}
+        <p className="small ok">True-price promise: this total is what you pay at checkout.</p>
         <Link href="/checkout/" className="btn">Checkout</Link>
       </div>
     </>

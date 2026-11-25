@@ -4,18 +4,18 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { getProduct, money } from "@/lib/products";
-
-const SHIPPING = { standard: 4.99, express: 12.99 };
-const TAX_RATE = 0.08;
+import { orderTotals } from "@/lib/pricing";
+import { useRegion } from "@/lib/region";
 
 export default function CheckoutPage() {
   const { lines, subtotal, clear } = useCart();
+  const { region } = useRegion();
   const [ship, setShip] = useState<"standard" | "express">("standard");
   const [orderId, setOrderId] = useState<string | null>(null);
 
-  const shipping = lines.length ? SHIPPING[ship] : 0;
-  const tax = subtotal * TAX_RATE;
-  const total = subtotal + shipping + tax;
+  const std = orderTotals(subtotal, region, false);
+  const t = orderTotals(subtotal, region, ship === "express");
+  const { tax, shipping, total } = t;
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -69,8 +69,8 @@ export default function CheckoutPage() {
           <label>Delivery address<textarea name="address" required rows={3} autoComplete="street-address" /></label>
           <fieldset>
             <legend>Delivery</legend>
-            <label className="inline"><input type="radio" checked={ship === "standard"} onChange={() => setShip("standard")} /> Standard (3-5 days) {money(SHIPPING.standard)}</label>
-            <label className="inline"><input type="radio" checked={ship === "express"} onChange={() => setShip("express")} /> Express (1-2 days) {money(SHIPPING.express)}</label>
+            <label className="inline"><input type="radio" checked={ship === "standard"} onChange={() => setShip("standard")} /> Standard ({region.standardDays}) {std.freeShipping ? "Free" : money(std.shipping)}</label>
+            <label className="inline"><input type="radio" checked={ship === "express"} onChange={() => setShip("express")} /> Express ({region.expressDays}) {money(orderTotals(subtotal, region, true).shipping)}</label>
           </fieldset>
           <p className="small muted">Payment is a placeholder in this demo. A real gateway comes with the backend.</p>
           <button className="btn" type="submit">Place order</button>
@@ -83,8 +83,8 @@ export default function CheckoutPage() {
           })}
           <hr />
           <div className="row"><span>Subtotal</span><span>{money(subtotal)}</span></div>
-          <div className="row"><span>Delivery</span><span>{money(shipping)}</span></div>
-          <div className="row"><span>Tax (8%)</span><span>{money(tax)}</span></div>
+          <div className="row"><span>Delivery to {region.name}</span><span>{shipping === 0 ? "Free" : money(shipping)}</span></div>
+          <div className="row"><span>Tax ({Math.round(region.taxRate * 100)}%)</span><span>{money(tax)}</span></div>
           <div className="row total"><strong>Total</strong><strong>{money(total)}</strong></div>
         </aside>
       </div>
