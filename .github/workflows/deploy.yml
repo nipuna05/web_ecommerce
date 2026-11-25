@@ -28,6 +28,10 @@ jobs:
       - run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          # Set the repo variable API_URL (Settings > Secrets and variables > Actions > Variables)
+          # to e.g. https://ecommerce-api.onrender.com/api to connect the live site to the API.
+          # Unset = demo mode with built-in data.
+          NEXT_PUBLIC_API_URL: ${{ vars.API_URL }}
       - run: touch out/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:

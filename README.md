@@ -61,7 +61,16 @@ Tables are auto-created (`synchronize`), which suits development. Add migrations
 1. Push to `main`. The workflow in `.github/workflows/deploy.yml` builds and publishes the storefront.
 2. One time only: repo **Settings → Pages → Source: GitHub Actions**.
 
-GitHub Pages serves static files only, so the API needs a separate host (Azure, Render, etc.).
+GitHub Pages serves static files only, so the API needs a separate host.
+
+### Put the API online (Render)
+
+1. Create a Render account, then **New → Blueprint** and pick this repo (it reads ).
+2. When asked, enter  and  (your own strong password, 8+ characters).  is generated for you.
+3. Wait for the deploy, then open .
+4. In GitHub: **Settings → Secrets and variables → Actions → Variables → New repository variable**: name , value . Re-run the **Deploy to GitHub Pages** workflow.
+
+**Free plan limits:** Render deletes a free PostgreSQL database 30 days after creation (14-day grace period, no backups), and free web services sleep when idle. Use a paid database, or another host, before storing real customer data. Tables are auto-created (); add migrations before production.
 
 ## Roadmap
 

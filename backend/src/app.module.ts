@@ -28,6 +28,8 @@ function dbOptions(): TypeOrmModuleOptions {
     password: process.env.DB_PASSWORD ?? "ecommerce",
     database: process.env.DB_NAME ?? "ecommerce",
     entities,
+    // DB_SSL=true for hosted databases that require TLS (use the host's connection string in DATABASE_URL).
+    ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : undefined,
     synchronize: process.env.DB_SYNC !== "false",
   };
 }
