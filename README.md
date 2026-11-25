@@ -65,15 +65,15 @@ GitHub Pages serves static files only, so the API needs a separate host.
 
 ### Put the API online (Render)
 
-1. Create a Render account, then **New → Blueprint** and pick this repo (it reads ).
-2. When asked, enter  and  (your own strong password, 8+ characters).  is generated for you.
-3. Wait for the deploy, then open .
-4. In GitHub: **Settings → Secrets and variables → Actions → Variables → New repository variable**: name , value . Re-run the **Deploy to GitHub Pages** workflow.
+1. Create a Render account, then **New → Blueprint** and pick this repo (it reads `render.yaml`).
+2. When asked, enter `ADMIN_EMAIL` and `ADMIN_PASSWORD` (your own strong password, 8+ characters). `JWT_SECRET` is generated for you.
+3. Wait for the deploy, then open `https://<your-service>.onrender.com/api/products`.
+4. In GitHub: **Settings → Secrets and variables → Actions → Variables → New repository variable**: name `API_URL`, value `https://<your-service>.onrender.com/api`. Re-run the **Deploy to GitHub Pages** workflow.
 
-**Free plan limits:** Render deletes a free PostgreSQL database 30 days after creation (14-day grace period, no backups), and free web services sleep when idle. Use a paid database, or another host, before storing real customer data. Tables are auto-created (); add migrations before production.
+**Free plan limits:** Render deletes a free PostgreSQL database 30 days after creation (14-day grace period, no backups), and free web services sleep when idle. Use a paid database, or another host, before storing real customer data. Tables are auto-created (`DB_SYNC`); add migrations before production.
 
 ## Roadmap
 
 1. **Phase 1:** static storefront with the true-price promise (done)
-2. **Phase 2:** API + PostgreSQL, accounts and login, admin panel, delivery by area and weight (done). Next: hosting the API online, payments, reviews, real tax and carrier rates, price history
+2. **Phase 2:** API + PostgreSQL, accounts and login, admin panel, delivery by area and weight (done). Next: go live online (Render blueprint ready), payments, reviews, real tax and carrier rates, price history
 3. **Phase 3:** AI shopping assistant, group cart, owner's wallet, agent-ready catalog
